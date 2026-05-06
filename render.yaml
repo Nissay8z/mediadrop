@@ -2,7 +2,7 @@ services:
   - type: web
     name: mediadrop
     runtime: image
-    repo: https://github.com/Nissay8z/mediadrop   # à remplacer par l'URL de ton dépôt
+    repo: https://github.com/TON-PSEUDO/TON-PROJET   # à remplacer par l'URL de ton dépôt
     plan: free
     envVars:
       - key: FFMPEG_PATH

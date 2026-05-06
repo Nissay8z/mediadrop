@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MediaDrop — Convertisseur Audio & Vidéo</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#080b14;--bg2:#0d1220;--bg3:#111827;--accent:#6ee7f7;--accent2:#a78bfa;--accent3:#34d399;--danger:#f87171;--text:#f1f5f9;--muted:#64748b;--border:rgba(255,255,255,0.07);--card:rgba(255,255,255,0.04);--glow:0 0 40px rgba(110,231,247,0.12)}
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;overflow-x:hidden}
+  body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");pointer-events:none;z-index:0;opacity:.4}
+  .blob{position:fixed;border-radius:50%;filter:blur(120px);pointer-events:none;z-index:0}
+  .blob1{width:700px;height:700px;background:rgba(110,231,247,0.05);top:-250px;left:-150px}
+  .blob2{width:600px;height:600px;background:rgba(167,139,250,0.06);bottom:-150px;right:-150px}
+
+  /* NAV */
+  nav{position:sticky;top:0;z-index:100;background:rgba(8,11,20,0.9);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:0 2rem}
+  .nav-inner{max-width:1100px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;height:64px}
+  .logo{font-family:'Syne',sans-serif;font-weight:800;font-size:1.35rem;color:var(--text);text-decoration:none;display:flex;align-items:center;gap:10px}
+  .logo-icon{width:32px;height:32px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px}
+  .nav-links{display:flex;align-items:center;gap:2rem}
+  .nav-links a{color:var(--muted);text-decoration:none;font-size:.9rem;transition:.2s}
+  .nav-links a:hover{color:var(--text)}
+  .api-status{display:flex;align-items:center;gap:6px;font-size:.8rem;color:var(--muted)}
+  .api-dot{width:7px;height:7px;border-radius:50%;background:var(--muted)}
+  .api-dot.online{background:var(--accent3);box-shadow:0 0 6px var(--accent3)}
+  .api-dot.offline{background:var(--danger);box-shadow:0 0 6px var(--danger)}
+
+  /* HERO */
+  .hero{position:relative;z-index:1;text-align:center;padding:64px 2rem 48px}
+  .hero-badge{display:inline-flex;align-items:center;gap:8px;background:rgba(110,231,247,0.08);border:1px solid rgba(110,231,247,0.2);border-radius:100px;padding:6px 18px;font-size:.8rem;color:var(--accent);margin-bottom:28px}
+  .pulse{width:6px;height:6px;background:var(--accent);border-radius:50%;animation:pulse 2s infinite}
+  @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.7)}}
+  h1{font-family:'Syne',sans-serif;font-size:clamp(2.2rem,5vw,3.8rem);font-weight:800;line-height:1.1;margin-bottom:18px;max-width:780px;margin-left:auto;margin-right:auto}
+  .grad{background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+  .hero-sub{color:var(--muted);font-size:1.05rem;max-width:520px;margin:0 auto 40px;line-height:1.7}
+  .waveform{display:flex;align-items:center;justify-content:center;gap:3px;height:36px;margin-bottom:40px}
+  .wb{width:3px;border-radius:3px;animation:wv 1.2s ease-in-out infinite}
+  @keyframes wv{0%,100%{height:3px;opacity:.25}50%{height:26px;opacity:1}}
+
+  /* PLATFORMS */
+  .converter{max-width:900px;margin:0 auto;padding:0 2rem;position:relative;z-index:1}
+  .ptabs{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-bottom:28px}
+  .ptab{display:flex;align-items:center;gap:7px;padding:9px 16px;border-radius:100px;border:1px solid var(--border);background:var(--card);cursor:pointer;transition:.2s;font-size:.88rem;color:var(--muted);font-family:'DM Sans',sans-serif}
+  .ptab:hover{border-color:rgba(110,231,247,0.3);color:var(--text)}
+  .ptab.active{background:rgba(110,231,247,0.1);border-color:rgba(110,231,247,0.4);color:var(--accent)}
+
+  /* MAIN CARD */
+  .main-card{background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:24px;padding:36px;backdrop-filter:blur(20px)}
+  .pbadge{display:inline-flex;align-items:center;gap:8px;padding:5px 14px;border-radius:100px;font-size:.83rem;font-weight:500;margin-bottom:24px}
+  .yt .pbadge{background:rgba(255,0,0,0.1);border:1px solid rgba(255,0,0,0.25);color:#ff6b6b}
+  .sp .pbadge{background:rgba(30,215,96,0.1);border:1px solid rgba(30,215,96,0.25);color:#1ed760}
+  .sc .pbadge{background:rgba(255,85,0,0.1);border:1px solid rgba(255,85,0,0.25);color:#ff5500}
+  .tk .pbadge{background:rgba(110,231,247,0.1);border:1px solid rgba(110,231,247,0.25);color:var(--accent)}
+  .ig .pbadge{background:rgba(228,64,95,0.1);border:1px solid rgba(228,64,95,0.25);color:#e4405f}
+  .tw .pbadge{background:rgba(29,161,242,0.1);border:1px solid rgba(29,161,242,0.25);color:#1da1f2}
+  .fb .pbadge{background:rgba(24,119,242,0.1);border:1px solid rgba(24,119,242,0.25);color:#1877f2}
+  .dd .pbadge{background:rgba(167,139,250,0.1);border:1px solid rgba(167,139,250,0.25);color:var(--accent2)}
+
+  /* URL INPUT */
+  .url-group{display:flex;gap:12px;margin-bottom:24px}
+  .url-wrap{flex:1;position:relative}
+  .url-in{width:100%;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:12px;padding:14px 52px 14px 18px;color:var(--text);font-size:1rem;font-family:'DM Sans',sans-serif;outline:none;transition:.2s}
+  .url-in::placeholder{color:var(--muted)}
+  .url-in:focus{border-color:rgba(110,231,247,0.45);background:rgba(110,231,247,0.04)}
+  .url-in.err{border-color:rgba(248,113,113,.5)!important}
+  .paste-btn{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--muted);cursor:pointer;font-size:.8rem;display:flex;align-items:center;gap:3px;transition:.2s;padding:4px}
+  .paste-btn:hover{color:var(--accent)}
+  .go-btn{background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:12px;padding:14px 26px;color:#080b14;font-family:'Syne',sans-serif;font-weight:700;font-size:1rem;cursor:pointer;white-space:nowrap;transition:.2s;display:flex;align-items:center;gap:8px}
+  .go-btn:hover{opacity:.85;transform:translateY(-1px)}
+  .go-btn:disabled{opacity:.45;cursor:not-allowed;transform:none}
+
+  /* FORMAT ROW */
+  .fmt-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:8px}
+  .fmt-group label{display:block;font-size:.75rem;color:var(--muted);margin-bottom:7px;text-transform:uppercase;letter-spacing:.06em}
+  select.fsel{width:100%;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:10px;padding:10px 14px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:.9rem;outline:none;cursor:pointer;transition:.2s;-webkit-appearance:none;appearance:none}
+  select.fsel:focus{border-color:rgba(110,231,247,0.4)}
+  select.fsel option{background:#0d1220}
+
+  /* PANEL */
+  .panel{display:none}
+  .panel.active{display:block;animation:fadeIn .25s ease}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+
+  /* PROGRESS */
+  .prog-box{display:none;margin-top:24px;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:16px;padding:24px}
+  .prog-box.show{display:block}
+  .prog-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+  .prog-title{font-family:'Syne',sans-serif;font-weight:600;font-size:1rem}
+  .prog-pct{font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:700;color:var(--accent)}
+  .prog-meta{font-size:.82rem;color:var(--muted);margin-bottom:12px}
+  .prog-track{height:6px;background:rgba(255,255,255,0.08);border-radius:100px;overflow:hidden;margin-bottom:16px}
+  .prog-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:100px;transition:width .4s ease;width:0%}
+  .prog-steps{display:flex;gap:20px}
+  .step{font-size:.8rem;color:var(--muted);display:flex;align-items:center;gap:6px;transition:.3s}
+  .step.done{color:var(--accent3)}
+  .step.active{color:var(--accent)}
+  .sdot{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0}
+
+  /* RESULT */
+  .result-box{display:none;margin-top:16px;background:rgba(52,211,153,0.06);border:1px solid rgba(52,211,153,0.25);border-radius:16px;padding:24px}
+  .result-box.show{display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+  .result-thumb{width:80px;height:80px;border-radius:12px;object-fit:cover;background:rgba(255,255,255,0.08);flex-shrink:0}
+  .result-info{flex:1;min-width:0}
+  .result-title{font-family:'Syne',sans-serif;font-weight:700;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .result-meta{font-size:.83rem;color:var(--muted)}
+  .dl-btn{display:inline-flex;align-items:center;gap:8px;background:var(--accent3);color:#080b14;border:none;border-radius:10px;padding:12px 24px;font-family:'Syne',sans-serif;font-weight:700;cursor:pointer;font-size:.95rem;text-decoration:none;white-space:nowrap;transition:.2s}
+  .dl-btn:hover{opacity:.85}
+
+  /* ERROR */
+  .err-box{display:none;margin-top:16px;background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.3);border-radius:12px;padding:16px 20px;font-size:.9rem;color:var(--danger)}
+  .err-box.show{display:block}
+
+  /* FEATURES */
+  .section{max-width:1100px;margin:80px auto;padding:0 2rem;position:relative;z-index:1}
+  .slabel{font-size:.78rem;text-transform:uppercase;letter-spacing:.1em;color:var(--accent);margin-bottom:12px;font-weight:500}
+  .stitle{font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;margin-bottom:10px}
+  .ssub{color:var(--muted);max-width:500px;line-height:1.7;margin-bottom:44px}
+  .feat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px}
+  .feat{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:28px;transition:.3s}
+  .feat:hover{border-color:rgba(110,231,247,0.2);transform:translateY(-2px)}
+  .ficon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:18px;font-size:22px}
+  .ficon.c{background:rgba(110,231,247,0.1)}
+  .ficon.p{background:rgba(167,139,250,0.1)}
+  .ficon.g{background:rgba(52,211,153,0.1)}
+  .ficon.o{background:rgba(251,146,60,0.1)}
+  .feat h3{font-family:'Syne',sans-serif;font-weight:700;margin-bottom:8px;font-size:1rem}
+  .feat p{color:var(--muted);font-size:.88rem;line-height:1.6}
+
+  /* FORMATS */
+  .chips{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}
+  .chip{padding:7px 16px;border-radius:100px;font-size:.83rem;font-weight:500;border:1px solid var(--border);background:var(--card)}
+  .chip.a{border-color:rgba(110,231,247,0.3);color:var(--accent);background:rgba(110,231,247,0.07)}
+  .chip.v{border-color:rgba(167,139,250,0.3);color:var(--accent2);background:rgba(167,139,250,0.07)}
+  .chip.i{border-color:rgba(52,211,153,0.3);color:var(--accent3);background:rgba(52,211,153,0.07)}
+
+  /* STATS */
+  .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px}
+  .stat{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:28px;text-align:center}
+  .snum{font-family:'Syne',sans-serif;font-size:2.2rem;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+  .slbl{color:var(--muted);font-size:.88rem;margin-top:4px}
+
+  /* FAQ */
+  .faq{max-width:760px;margin:0 auto 80px;padding:0 2rem;position:relative;z-index:1}
+  .faq-item{border-bottom:1px solid var(--border);padding:20px 0;cursor:pointer}
+  .faq-q{font-family:'Syne',sans-serif;font-weight:600;display:flex;justify-content:space-between;align-items:center;gap:16px}
+  .faq-q .arr{transition:.3s;color:var(--muted);font-size:1.2rem}
+  .faq-item.open .arr{transform:rotate(45deg);color:var(--accent)}
+  .faq-a{color:var(--muted);line-height:1.7;font-size:.92rem;max-height:0;overflow:hidden;transition:.3s}
+  .faq-item.open .faq-a{max-height:200px;padding-top:12px}
+
+  /* FOOTER */
+  footer{border-top:1px solid var(--border);padding:36px 2rem;position:relative;z-index:1}
+  .fi{max-width:1100px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px}
+  .fl{display:flex;gap:20px}
+  .fl a{color:var(--muted);text-decoration:none;font-size:.88rem;transition:.2s}
+  .fl a:hover{color:var(--text)}
+  .fc{color:var(--muted);font-size:.83rem}
+
+  /* RESPONSIVE */
+  @media(max-width:768px){.fmt-row{grid-template-columns:1fr 1fr}.stats-grid{grid-template-columns:repeat(2,1fr)}.url-group{flex-direction:column}.nav-links{display:none}}
+  @media(max-width:480px){.fmt-row{grid-template-columns:1fr}.stats-grid{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+
+<div class="blob blob1"></div>
+<div class="blob blob2"></div>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-inner">
+    <a class="logo" href="#"><div class="logo-icon">🎵</div>MediaDrop</a>
+    <div class="nav-links">
+      <a href="#converter">Convertir</a>
+      <a href="#formats">Formats</a>
+      <a href="#faq">FAQ</a>
+    </div>
+    <div class="api-status">
+      <div class="api-dot" id="apiDot"></div>
+      <span id="apiLabel">Vérification...</span>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-badge"><span class="pulse"></span>Gratuit · Sans inscription · Illimité</div>
+  <h1>Téléchargez & Convertissez<br>depuis <span class="grad">toutes les plateformes</span></h1>
+  <p class="hero-sub">YouTube, Spotify, SoundCloud, TikTok, Instagram et plus — en MP3, MP4, FLAC, WAV et 30+ formats.</p>
+  <div class="waveform" id="wf"></div>
+</section>
+
+<!-- CONVERTER -->
+<section class="converter" id="converter">
+  <div class="ptabs">
+    <button class="ptab active" onclick="sw('yt',this)">🎬 YouTube</button>
+    <button class="ptab" onclick="sw('sp',this)">🎵 Spotify</button>
+    <button class="ptab" onclick="sw('sc',this)">☁️ SoundCloud</button>
+    <button class="ptab" onclick="sw('tk',this)">🎵 TikTok</button>
+    <button class="ptab" onclick="sw('ig',this)">📷 Instagram</button>
+    <button class="ptab" onclick="sw('tw',this)">🐦 Twitter/X</button>
+    <button class="ptab" onclick="sw('fb',this)">👥 Facebook</button>
+    <button class="ptab" onclick="sw('dd',this)">🎧 Deezer</button>
+  </div>
+
+  <div class="main-card">
+
+    <!-- YOUTUBE -->
+    <div class="panel yt active" id="p-yt">
+      <div class="pbadge yt">🎬 YouTube Downloader</div>
+      <div class="url-group">
+        <div class="url-wrap"><input class="url-in" id="u-yt" type="url" placeholder="Collez un lien YouTube — vidéo, playlist, live..."><button class="paste-btn" onclick="paste('u-yt')">📋 Coller</button></div>
+        <button class="go-btn" onclick="go()">⚡ Convertir</button>
+      </div>
+      <div class="fmt-row">
+        <div class="fmt-group"><label>Type</label><select class="fsel" id="t-yt" onchange="upFmt('yt')"><option value="audio">🎵 Audio</option><option value="video">🎬 Vidéo</option></select></div>
+        <div class="fmt-group"><label>Format</label><select class="fsel" id="f-yt"><option>mp3</option><option>aac</option><option>wav</option><option>flac</option><option>ogg</option><option>m4a</option></select></div>
+        <div class="fmt-group"><label>Qualité</label><select class="fsel" id="q-yt"><option>320 kbps (Max)</option><option>256 kbps</option><option>192 kbps</option><option>128 kbps</option></select></div>
+      </div>
+    </div>
+
+    <!-- SPOTIFY -->
+    <div class="panel sp" id="p-sp">
+      <div class="pbadge sp">🎵 Spotify Downloader</div>
+      <div class="url-group">
+        <div class="url-wrap"><input class="url-in" id="u-sp" type="url" placeholder="Collez un lien Spotify — chanson, album, playlist..."><button class="paste-btn" onclick="paste('u-sp')">📋 Coller</button></div>
+        <button class="go-btn" onclick="go()">⚡ Convertir</button>
+      </div>
+      <div class="fmt-row">
+        <div class="fmt-group"><label>Type</label><select class="fsel"><option>🎵 Chanson</option><option>💿 Album</option><option>📋 Playlist</option></select></div>
+        <div class="fmt-group"><label>Format</label><select class="fsel" id="f-sp"><option>mp3</option><option>flac</option><option>ogg</option><option>m4a</option></select></div>
+        <div class="fmt-group"><label>Qualité</label><select class="fsel" id="q-sp"><option>320 kbps (Max)</option><option>256 kbps</option><option>192 kbps</option><option>128 kbps</option></select></div>
+      </div>
+    </div>
+
+    <!-- SOUNDCLOUD -->
+    <div class="panel sc" id="p-sc">
+      <div class="pbadge sc">☁️ SoundCloud Downloader</div>
+      <div class="url-group">
+        <div class="url-wrap"><input class="url-in" id="u-sc" type="url" placeholder="Collez un lien SoundCloud — piste, set, profil..."><button class="paste-btn" onclick="paste('u-sc')">📋 Coller</button></div>
+        <button class="go-btn" onclick="go()">⚡ Convertir</button>
+      </div>
+      <div class="fmt-row">
+        <div class="fmt-group"><label>Type</label><select class="fsel"><option>🎵 Piste</option><option>📋 Set / Playlist</option></select></div>
+        <div class="fmt-group"><label>Format</label><select class="fsel" id="f-sc"><option>mp3</option><option>wav</option><option>flac</option><option>aac</option></select></div>
+        <div class="fmt-group"><label>Qualité</label><select class="fsel" id="q-sc"><option>320 kbps (Max)</option><option>256 kbps</option><option>192 kbps</option><option>128 kbps</option></select></div>
+      </div>
+    </div>
+
+    <!-- TIKTOK -->
+    <div class="panel tk" id="p-tk">
+      <div class="pbadge tk">🎵 TikTok Downloader</div>
+      <div class="url-group">
+        <div class="url-wrap"><input class="url-in" id="u-tk" type="url" placeholder="Collez un lien TikTok..."><button class="paste-btn" onclick="paste('u-tk')">📋 Coller</button></div>
+        <button class="go-btn" onclick="go()">⚡ Télécharger</button>
+      </div>
+      <div class="fmt-row">
+        <div class="fmt-group"><label>Type</label><select class="fsel" id="t-tk" onchange="upFmt('tk')"><option value="video">🎬 Vidéo (sans watermark)</option><option value="audio">🎵 Audio MP3</option></select></div>
+        <div class="fmt-group"><label>Format</label><select class="fsel" id="f-tk"><option>mp4</option><option>webm</option><option>mp3</option></select></div>
+        <div class="fmt-group"><label>Qualité</label><select class="fsel" id="q-tk"><option>1080p HD</option><option>720p</option><option>480p</option></select></div>
+      </div>
+    </div>
+
+    <!-- INSTAGRAM -->
+    <div class="panel ig" id="p-ig">
+      <div class="pbadge ig">📷 Instagram Downloader</div>
+      <div class="url-group">
+        <div class="url-wrap"><input class="url-in" id="u-ig" type="url" placeholder="Collez un lien Instagram — Reel, Story, Post..."><button class="paste-btn" onclick="paste('u-ig')">📋 Coller</button></div>
+        <button class="go-btn" onclick="go()">⚡ Télécharger</button>
+      </div>
+      <div class="fmt-row">
+        <div class="fmt-group"><label>Type</label><select class="fsel" id="t-ig" onchange="upFmt('ig')"><option value="video">🎬 Vidéo / Reel</option><option value="audio">🎵 Audio MP3</option></select></div>
+        <div class="fmt-group"><label>Format</label><select class="fsel" id="f-ig"><option>mp4</option><option>mov</option><option>mp3</option></select></div>
+        <div class="fmt-group"><label>Qualité</label><select class="fsel" id="q-ig"><option>Originale (HD)</option><option>720p</option><option>480p</option></select></div>
+      </div>
+    </div>
+
+    <!-- TWITTER -->
+    <div class="panel tw" id="p-tw">
+      <div class="pbadge tw">🐦 Twitter / X Downloader</div>
+      <div class="url-group">
+        <div class="url-wrap"><input class="url-in" id="u-tw" type="url" placeholder="Collez un lien Twitter / X..."><button class="paste-btn" onclick="paste('u-tw')">📋 Coller</button></div>
+        <button class="go-btn" onclick="go()">⚡ Télécharger</button>
+      </div>
+      <div class="fmt-row">
+        <div class="fmt-group"><label>Type</label><select class="fsel" id="t-tw" onchange="upFmt('tw')"><option value="video">🎬 Vidéo</option><option value="audio">🎵 Audio MP3</option></select></div>
+        <div class="fmt-group"><label>Format</label><select class="fsel" id="f-tw"><option>mp4</option><option>gif</option><option>mp3</option></select></div>
+        <div class="fmt-group"><label>Qualité</label><select class="fsel" id="q-tw"><option>1080p</option><option>720p</option><option>480p</option></select></div>
+      </div>
+    </div>
+
+    <!-- FACEBOOK -->
+    <div class="panel fb" id="p-fb">
+      <div class="pbadge fb">👥 Facebook Downloader</div>
+      <div class="url-group">
+        <div class="url-wrap"><input class="url-in" id="u-fb" type="url" placeholder="Collez un lien Facebook — vidéo, story, reel..."><button class="paste-btn" onclick="paste('u-fb')">📋 Coller</button></div>
+        <button class="go-btn" onclick="go()">⚡ Télécharger</button>
+      </div>
+      <div class="fmt-row">
+        <div class="fmt-group"><label>Type</label><select class="fsel" id="t-fb" onchange="upFmt('fb')"><option value="video">🎬 Vidéo</option><option value="audio">🎵 Audio MP3</option></select></div>
+        <div class="fmt-group"><label>Format</label><select class="fsel" id="f-fb"><option>mp4</option><option>avi</option><option>mp3</option></select></div>
+        <div class="fmt-group"><label>Qualité</label><select class="fsel" id="q-fb"><option>1080p Full HD</option><option>720p HD</option><option>480p</option></select></div>
+      </div>
+    </div>
+
+    <!-- DEEZER -->
+    <div class="panel dd" id="p-dd">
+      <div class="pbadge dd">🎧 Deezer Downloader</div>
+      <div class="url-group">
+        <div class="url-wrap"><input class="url-in" id="u-dd" type="url" placeholder="Collez un lien Deezer — piste, album, playlist..."><button class="paste-btn" onclick="paste('u-dd')">📋 Coller</button></div>
+        <button class="go-btn" onclick="go()">⚡ Convertir</button>
+      </div>
+      <div class="fmt-row">
+        <div class="fmt-group"><label>Type</label><select class="fsel"><option>🎵 Piste</option><option>💿 Album</option><option>📋 Playlist</option></select></div>
+        <div class="fmt-group"><label>Format</label><select class="fsel" id="f-dd"><option>mp3</option><option>flac</option><option>aac</option><option>wav</option></select></div>
+        <div class="fmt-group"><label>Qualité</label><select class="fsel" id="q-dd"><option>320 kbps (Max)</option><option>256 kbps</option><option>192 kbps</option><option>128 kbps</option></select></div>
+      </div>
+    </div>
+
+    <!-- PROGRESS -->
+    <div class="prog-box" id="progBox">
+      <div class="prog-header">
+        <div class="prog-title" id="progTitle">Démarrage...</div>
+        <div class="prog-pct" id="progPct">0%</div>
+      </div>
+      <div class="prog-meta" id="progMeta"></div>
+      <div class="prog-track"><div class="prog-fill" id="progFill"></div></div>
+      <div class="prog-steps">
+        <div class="step active" id="s1"><div class="sdot"></div>Analyse</div>
+        <div class="step" id="s2"><div class="sdot"></div>Téléchargement</div>
+        <div class="step" id="s3"><div class="sdot"></div>Conversion</div>
+        <div class="step" id="s4"><div class="sdot"></div>Prêt</div>
+      </div>
+    </div>
+
+    <!-- RESULT -->
+    <div class="result-box" id="resBox">
+      <img class="result-thumb" id="resThumb" src="" alt="">
+      <div class="result-info">
+        <div class="result-title" id="resTitle">Fichier prêt</div>
+        <div class="result-meta" id="resMeta"></div>
+      </div>
+      <a class="dl-btn" id="dlBtn" href="#" target="_blank">⬇ Télécharger</a>
+    </div>
+
+    <!-- ERROR -->
+    <div class="err-box" id="errBox"></div>
+
+  </div>
+</section>
+
+<!-- STATS -->
+<section class="section">
+  <div class="stats-grid">
+    <div class="stat"><div class="snum">50M+</div><div class="slbl">Conversions réalisées</div></div>
+    <div class="stat"><div class="snum">30+</div><div class="slbl">Formats supportés</div></div>
+    <div class="stat"><div class="snum">8</div><div class="slbl">Plateformes</div></div>
+    <div class="stat"><div class="snum">100%</div><div class="slbl">Gratuit</div></div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section class="section">
+  <p class="slabel">Pourquoi MediaDrop ?</p>
+  <h2 class="stitle">Tout ce dont vous avez besoin</h2>
+  <p class="ssub">Rapide, simple, sans prise de tête. Un seul outil pour toutes les plateformes.</p>
+  <div class="feat-grid">
+    <div class="feat"><div class="ficon c">⚡</div><h3>Ultra rapide</h3><p>Conversion en quelques secondes grâce à yt-dlp et FFmpeg optimisés côté serveur.</p></div>
+    <div class="feat"><div class="ficon p">🎵</div><h3>Qualité maximale</h3><p>Jusqu'à 320 kbps en MP3 ou FLAC lossless. La meilleure qualité disponible sur la source.</p></div>
+    <div class="feat"><div class="ficon g">📦</div><h3>Playlists entières</h3><p>Téléchargez des playlists complètes YouTube ou Spotify en un seul clic — livraison en ZIP.</p></div>
+    <div class="feat"><div class="ficon o">🔒</div><h3>Fichiers supprimés après 2h</h3><p>Vos fichiers sont automatiquement effacés du serveur. Votre vie privée est protégée.</p></div>
+    <div class="feat"><div class="ficon c">🏷️</div><h3>Métadonnées auto</h3><p>Titre, artiste, album, couverture d'album — intégrés automatiquement dans chaque fichier.</p></div>
+    <div class="feat"><div class="ficon p">📱</div><h3>Compatible partout</h3><p>Fonctionne sur PC, Mac, iPhone et Android. Aucune application à installer.</p></div>
+  </div>
+</section>
+
+<!-- FORMATS -->
+<section class="section" id="formats">
+  <p class="slabel">Formats</p>
+  <h2 class="stitle">30+ formats supportés</h2>
+  <p style="color:var(--muted);margin-bottom:8px;font-size:.9rem">Audio</p>
+  <div class="chips">
+    <span class="chip a">MP3</span><span class="chip a">FLAC</span><span class="chip a">WAV</span><span class="chip a">AAC</span>
+    <span class="chip a">OGG</span><span class="chip a">M4A</span><span class="chip a">OPUS</span><span class="chip a">WMA</span>
+    <span class="chip a">AIFF</span><span class="chip a">MP2</span><span class="chip a">AC3</span>
+  </div>
+  <p style="color:var(--muted);margin:20px 0 8px;font-size:.9rem">Vidéo</p>
+  <div class="chips">
+    <span class="chip v">MP4</span><span class="chip v">MKV</span><span class="chip v">AVI</span><span class="chip v">MOV</span>
+    <span class="chip v">WebM</span><span class="chip v">FLV</span><span class="chip v">WMV</span><span class="chip v">3GP</span>
+    <span class="chip v">GIF</span><span class="chip v">TS</span><span class="chip v">M4V</span>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="faq" id="faq">
+  <p class="slabel">FAQ</p>
+  <h2 class="stitle" style="margin-bottom:28px">Questions fréquentes</h2>
+  <div class="faq-item" onclick="this.classList.toggle('open')">
+    <div class="faq-q">Est-ce vraiment gratuit ? <span class="arr">＋</span></div>
+    <div class="faq-a">Oui, 100% gratuit. Aucune inscription, aucune limite, aucune pub intrusive.</div>
+  </div>
+  <div class="faq-item" onclick="this.classList.toggle('open')">
+    <div class="faq-q">Puis-je télécharger des playlists entières ? <span class="arr">＋</span></div>
+    <div class="faq-a">Absolument ! Collez un lien de playlist YouTube ou Spotify, tous les titres seront téléchargés et livrés dans une archive ZIP.</div>
+  </div>
+  <div class="faq-item" onclick="this.classList.toggle('open')">
+    <div class="faq-q">Spotify ne fonctionne pas ? <span class="arr">＋</span></div>
+    <div class="faq-a">Spotify utilise spotDL qui retrouve les morceaux sur YouTube. La qualité est très bonne mais dépend de la disponibilité sur YouTube. Assurez-vous que spotDL est bien installé (pip install spotdl).</div>
+  </div>
+  <div class="faq-item" onclick="this.classList.toggle('open')">
+    <div class="faq-q">Quelle qualité maximale ? <span class="arr">＋</span></div>
+    <div class="faq-a">Audio : jusqu'à 320 kbps MP3 ou FLAC lossless. Vidéo : jusqu'à 4K/8K selon la source disponible.</div>
+  </div>
+  <div class="faq-item" onclick="this.classList.toggle('open')">
+    <div class="faq-q">Combien de temps mes fichiers sont-ils conservés ? <span class="arr">＋</span></div>
+    <div class="faq-a">Les fichiers sont automatiquement supprimés du serveur 2 heures après la conversion. Téléchargez-les rapidement !</div>
+  </div>
+</section>
+
+<footer>
+  <div class="fi">
+    <a class="logo" href="#"><div class="logo-icon">🎵</div>MediaDrop</a>
+    <div class="fl"><a href="#">Confidentialité</a><a href="#">Conditions</a><a href="#">Contact</a></div>
+    <div class="fc">© 2025 MediaDrop · Propulsé par yt-dlp & spotDL</div>
+  </div>
+</footer>
+
+<script>
+const API = "http://localhost:5000";
+let cur = "yt", pollTimer = null;
+
+// WAVEFORM
+const wf = document.getElementById("wf");
+for(let i=0;i<32;i++){
+  const b=document.createElement("div");
+  b.className="wb";
+  const c=i%2===0?"var(--accent)":"var(--accent2)";
+  b.style.cssText=`background:${c};animation-delay:${(Math.random()*1.2).toFixed(2)}s`;
+  wf.appendChild(b);
+}
+
+// API STATUS
+async function checkApi(){
+  try{
+    const r=await fetch(API+"/api/status/test",{signal:AbortSignal.timeout(3000)});
+    document.getElementById("apiDot").className="api-dot online";
+    document.getElementById("apiLabel").textContent="Serveur en ligne";
+  }catch{
+    document.getElementById("apiDot").className="api-dot offline";
+    document.getElementById("apiLabel").textContent="Serveur hors ligne";
+  }
+}
+checkApi();
+setInterval(checkApi,10000);
+
+// PLATFORM SWITCH
+function sw(id,btn){
+  document.querySelectorAll(".panel").forEach(p=>p.classList.remove("active"));
+  document.querySelectorAll(".ptab").forEach(t=>t.classList.remove("active"));
+  document.getElementById("p-"+id).classList.add("active");
+  btn.classList.add("active");
+  cur=id;
+  reset();
+}
+
+// PASTE
+async function paste(id){
+  try{
+    const t=await navigator.clipboard.readText();
+    document.getElementById(id).value=t;
+  }catch{document.getElementById(id).focus()}
+}
+
+// FORMAT UPDATE
+function upFmt(id){
+  const t=document.getElementById("t-"+id)?.value;
+  const f=document.getElementById("f-"+id);
+  const q=document.getElementById("q-"+id);
+  if(!f||!q)return;
+  if(t==="audio"){
+    f.innerHTML="<option>mp3</option><option>aac</option><option>wav</option><option>flac</option><option>ogg</option>";
+    q.innerHTML="<option>320 kbps (Max)</option><option>256 kbps</option><option>192 kbps</option><option>128 kbps</option>";
+  }else{
+    f.innerHTML="<option>mp4</option><option>mkv</option><option>webm</option><option>avi</option><option>mov</option>";
+    q.innerHTML="<option>1080p Full HD</option><option>720p HD</option><option>480p</option><option>4K Ultra HD</option>";
+  }
+}
+
+function reset(){
+  clearInterval(pollTimer);
+  document.getElementById("progBox").classList.remove("show");
+  document.getElementById("resBox").classList.remove("show");
+  document.getElementById("errBox").classList.remove("show");
+}
+
+function showErr(msg){
+  const b=document.getElementById("errBox");
+  b.textContent="❌ "+msg;
+  b.classList.add("show");
+}
+
+function setStep(n){
+  for(let i=1;i<=4;i++){
+    const el=document.getElementById("s"+i);
+    el.className="step"+(i<n?" done":i===n?" active":"");
+  }
+}
+
+// MAIN ACTION
+async function go(){
+  reset();
+  const url=(document.getElementById("u-"+cur)?.value||"").trim();
+  if(!url){
+    const inp=document.getElementById("u-"+cur);
+    inp.classList.add("err");
+    setTimeout(()=>inp.classList.remove("err"),2000);
+    return;
+  }
+  const fmt=(document.getElementById("f-"+cur)?.value||"mp3").toLowerCase();
+  const quality=document.getElementById("q-"+cur)?.value||"320 kbps (Max)";
+
+  // Show progress
+  const pb=document.getElementById("progBox");
+  pb.classList.add("show");
+  document.getElementById("progTitle").textContent="Démarrage de la conversion...";
+  document.getElementById("progPct").textContent="0%";
+  document.getElementById("progFill").style.width="0%";
+  document.getElementById("progMeta").textContent="";
+  setStep(1);
+
+  let jobId;
+  try{
+    const r=await fetch(API+"/api/start",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({url,format:fmt,quality})
+    });
+    const d=await r.json();
+    if(d.error)throw new Error(d.error);
+    jobId=d.job_id;
+  }catch(e){
+    showErr("Impossible de contacter le serveur. Assurez-vous que app.py tourne sur le port 5000.");
+    pb.classList.remove("show");
+    return;
+  }
+
+  // Poll status
+  pollTimer=setInterval(async()=>{
+    try{
+      const r=await fetch(API+"/api/status/"+jobId);
+      const d=await r.json();
+      if(d.error&&d.error!=="Job introuvable")throw new Error(d.error);
+
+      const pct=d.progress||0;
+      document.getElementById("progFill").style.width=pct+"%";
+      document.getElementById("progPct").textContent=pct+"%";
+
+      const statusLabels={starting:"Démarrage...",downloading:"Téléchargement en cours...",processing:"Conversion & encodage...",done:"Fichier prêt !"};
+      document.getElementById("progTitle").textContent=statusLabels[d.status]||d.status;
+
+      let meta=[];
+      if(d.speed)meta.push("⚡ "+d.speed);
+      if(d.eta)meta.push("⏱ "+d.eta);
+      if(d.title)meta.push("🎵 "+d.title.substring(0,60));
+      document.getElementById("progMeta").textContent=meta.join(" · ");
+
+      if(d.status==="downloading")setStep(2);
+      else if(d.status==="processing")setStep(3);
+      else if(d.status==="done"){
+        clearInterval(pollTimer);
+        setStep(4);
+        setTimeout(()=>showResult(jobId,d,fmt),400);
+      }else if(d.status==="error"){
+        clearInterval(pollTimer);
+        pb.classList.remove("show");
+        showErr(d.error||"Une erreur est survenue");
+      }
+    }catch(e){
+      clearInterval(pollTimer);
+      pb.classList.remove("show");
+      showErr(e.message);
+    }
+  },800);
+}
+
+function showResult(jobId,d,fmt){
+  document.getElementById("progBox").classList.remove("show");
+  const rb=document.getElementById("resBox");
+  rb.classList.add("show");
+  document.getElementById("resTitle").textContent=d.title||"Fichier converti";
+  document.getElementById("resMeta").textContent=`${fmt.toUpperCase()} · ${d.size||""}`;
+  document.getElementById("dlBtn").href=API+"/api/download/"+jobId;
+  // Thumbnail (hide if none)
+  const th=document.getElementById("resThumb");
+  th.style.display="none";
+}
+</script>
+</body>
+</html>

@@ -95,6 +95,6 @@ Render – hébergement backend
 📄 Licence
 Ce projet est à but éducatif. Respectez les droits d’auteur et les conditions d’utilisation des plateformes concernées.
 
-POUR TESTER
+Voila a quoi ressemble l'interface
 
 https://nissay8z.github.io/mediadrop/

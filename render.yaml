@@ -1,11 +1,11 @@
 services:
   - type: web
     name: mediadrop
-    runtime: python
-    buildCommand: |
-      apt-get update && apt-get install -y ffmpeg
-      pip install -r requirements.txt
-    startCommand: gunicorn app:app
+    runtime: image
+    repo: https://github.com/Nissay8z/mediadrop   # à remplacer par l'URL de ton dépôt
+    plan: free
     envVars:
       - key: FFMPEG_PATH
         value: /usr/bin/ffmpeg
+    dockerfilePath: ./Dockerfile
+    dockerContext: .

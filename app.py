@@ -168,14 +168,13 @@ def download_spotify(job_id, url, fmt, quality):
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
     for line in proc.stdout:
         line = line.strip()
-        print(f"[spotdl] {line}")  # pour tracer dans les logs Render
+        print(f"[spotdl] {line}")
         if "Downloaded" in line or "%" in line:
             m = re.search(r"(\d+)%", line)
             if m:
                 j["progress"] = int(m.group(1))
     proc.wait()
 
-    # Récupérer les fichiers générés
     files = glob.glob(os.path.join(out_dir, f"*.{fmt}")) + \
             glob.glob(os.path.join(out_dir, "*.flac")) + \
             glob.glob(os.path.join(out_dir, "*.mp3"))
@@ -185,7 +184,6 @@ def download_spotify(job_id, url, fmt, quality):
         j["error"] = "Aucun fichier généré par spotdl"
         return
 
-    # Si plusieurs fichiers (playlist) -> zip
     if len(files) > 1:
         zip_path = os.path.join(DOWNLOAD_DIR, f"{job_id}.zip")
         with zipfile.ZipFile(zip_path, "w") as zf:
@@ -214,7 +212,6 @@ def download_ytdlp(job_id, url, fmt, quality):
                 raise Exception("Impossible d'extraire les informations du lien")
             j["title"] = info.get("title", "fichier")
 
-            # Chercher le fichier généré
             pattern = os.path.join(DOWNLOAD_DIR, f"{job_id}_*")
             files = glob.glob(pattern)
             exts = (fmt, "mp4", "mkv", "webm", "mp3", "flac", "wav", "aac", "m4a", "ogg", "zip")
@@ -235,6 +232,10 @@ def download_ytdlp(job_id, url, fmt, quality):
         j["error"] = str(e)
 
 # ---------- Routes API ----------
+@app.route("/api/status/test")
+def test_status():
+    return jsonify({"status": "ok"})
+
 @app.route("/api/start", methods=["POST"])
 def start():
     data = request.get_json()

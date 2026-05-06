@@ -2,13 +2,23 @@ import os, uuid, threading, time, json, re
 from flask import Flask, request, jsonify, send_file, abort
 from flask_cors import CORS
 import yt_dlp
+import base64
 
-# ---------- Configuration FFmpeg depuis l'environnement ----------
+# ---------- Gestion des cookies YouTube ----------
+COOKIES_CONTENT = os.environ.get("COOKIES_CONTENT")
+COOKIES_FILE = "cookies.txt"
+
+if COOKIES_CONTENT:
+    with open(COOKIES_FILE, "w") as f:
+        f.write(base64.b64decode(COOKIES_CONTENT).decode())
+        print("[INFO] Fichier cookies chargé depuis l'environnement")
+else:
+    print("[WARN] COOKIES_CONTENT non défini, les requêtes YouTube peuvent échouer")
+
+# ---------- Configuration FFmpeg ----------
 ffmpeg_path = os.environ.get("FFMPEG_PATH")
 if ffmpeg_path:
-    # Ajoute le chemin de FFmpeg au PATH du système
     os.environ["PATH"] = ffmpeg_path + os.pathsep + os.environ.get("PATH", "")
-    # Indique explicitement à yt-dlp où trouver FFmpeg
     os.environ["FFMPEG_LOCATION"] = ffmpeg_path
     print(f"[INFO] FFmpeg configuré depuis : {ffmpeg_path}")
 else:
@@ -20,7 +30,6 @@ CORS(app)
 DOWNLOAD_DIR = os.path.join(os.path.dirname(__file__), "downloads")
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 
-# Stockage des jobs
 jobs = {}
 
 def auto_delete(path, delay=7200):
@@ -34,7 +43,6 @@ def auto_delete(path, delay=7200):
             print(f"[ERROR] Suppression échouée : {e}")
     threading.Thread(target=_del, daemon=True).start()
 
-# Hook de progression yt-dlp
 def make_hook(job_id):
     def hook(d):
         j = jobs.get(job_id)
@@ -83,7 +91,7 @@ def build_ydl_opts(job_id, fmt, quality, out_path_tmpl):
         })
         postprocessors.append({"key": "FFmpegMetadata", "add_metadata": True})
         postprocessors.append({"key": "EmbedThumbnail"})
-        return {
+        opts = {
             "format": "bestaudio/best",
             "outtmpl": out_path_tmpl,
             "postprocessors": postprocessors,
@@ -107,7 +115,7 @@ def build_ydl_opts(job_id, fmt, quality, out_path_tmpl):
             "preferedformat": fmt,
         })
         postprocessors.append({"key": "FFmpegMetadata", "add_metadata": True})
-        return {
+        opts = {
             "format": vformat,
             "outtmpl": out_path_tmpl,
             "postprocessors": postprocessors,
@@ -117,6 +125,13 @@ def build_ydl_opts(job_id, fmt, quality, out_path_tmpl):
             "no_warnings": True,
             "ignoreerrors": False,
         }
+
+    # Ajouter le fichier de cookies s'il existe
+    if os.path.exists(COOKIES_FILE):
+        opts["cookiefile"] = COOKIES_FILE
+        print("[INFO] Utilisation du fichier cookies pour yt-dlp")
+
+    return opts
 
 def download_spotify(job_id, url, fmt, quality):
     import subprocess, glob
@@ -261,12 +276,6 @@ def info():
             })
     except Exception as e:
         return jsonify({"error": str(e)}), 400
-
-# Pour un déploiement tout-en-un, on peut servir le frontend (optionnel)
-# Si tu veux mettre index.html dans le même dossier et tout déployer ensemble
-# @app.route('/')
-# def index():
-#     return send_file('index.html')
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
